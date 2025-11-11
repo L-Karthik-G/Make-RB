@@ -1,0 +1,62 @@
+============================================================
+UBUNTU SETUP REQUIREMENTS FOR POTHOLE DETECTION APP
+============================================================
+
+# --- SYSTEM DEPENDENCIES ---
+sudo apt update && sudo apt upgrade -y
+    → Updates Ubuntu’s package lists and upgrades all outdated packages.
+
+sudo apt install python3 python3-pip python3-venv -y
+    → Installs Python 3, pip (Python package manager), and virtual environment tools.
+
+sudo apt install git zip unzip openjdk-17-jdk -y
+    → Git for version control, zip/unzip for file compression, and JDK 17 required by Buildozer/Android SDK.
+
+sudo apt install autoconf automake libtool pkg-config -y
+    → Tools required for building libraries (needed by Buildozer and python-for-android).
+
+sudo apt install python3-distutils python3-setuptools -y
+    → Provides utilities for managing and installing Python packages.
+
+sudo apt install adb -y
+    → Installs Android Debug Bridge for testing APKs on connected devices.
+
+# --- PYTHON ENVIRONMENT SETUP ---
+python3 -m venv venv
+source venv/bin/activate
+    → Creates and activates a virtual environment for isolated dependency management.
+
+# --- PYTHON LIBRARIES (pip installs) ---
+pip install --upgrade pip
+    → Upgrades pip to the latest version.
+
+pip install buildozer
+    → Tool to compile Python/Kivy code into Android APKs.
+
+pip install cython
+    → Compiler that converts Python code to C for speed and compatibility with Android.
+
+pip install kivy
+    → GUI framework used for app interface and display elements.
+
+pip install plyer
+    → Library to access mobile hardware features (accelerometer, GPS, etc.).
+
+pip install requests
+    → Allows communication with Firebase through HTTP requests.
+
+pip install jnius
+    → Enables Python to interact with Java classes (used by Kivy Android builds).
+
+# --- ANDROID BUILD TOOLS (via Buildozer) ---
+buildozer init
+    → Creates a `buildozer.spec` configuration file.
+
+buildozer android debug
+    → Compiles the project into a `.apk` file for Android (debug mode).
+
+
+
+============================================================
+
+
