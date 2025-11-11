@@ -13,7 +13,7 @@ sudo apt install git zip unzip openjdk-17-jdk -y
     → Git for version control, zip/unzip for file compression, and JDK 17 required by Buildozer/Android SDK.
 
 sudo apt install autoconf automake libtool pkg-config -y
-    → Tools required for building libraries (needed by Buildozer and python-for-android).
+    → Tools required for building libraries.
 
 sudo apt install python3-distutils python3-setuptools -y
     → Provides utilities for managing and installing Python packages.
@@ -55,8 +55,5 @@ buildozer init
 buildozer android debug
     → Compiles the project into a `.apk` file for Android (debug mode).
 
-
-
-============================================================
 
 
