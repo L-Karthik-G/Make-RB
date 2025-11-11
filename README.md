@@ -64,8 +64,8 @@ You can install and start using **Make Roads Better (Make RB)** by following the
 - Improve detection accuracy using **AI/ML-based motion analysis**  
 - Add **offline support** for low-connectivity areas  
 - Enable **community-driven pothole verification**  
-- Integrate with **municipal repair systems** for automatic reporting  
-- Provide **severity ratings** for detected potholes  
+- Provide **severity ratings** for detected potholes
+- To integrate this whith a **computer vison model** which uses dashcam footage to detect undualated,potholed roads and update its location on to the app
 
 ---
 
