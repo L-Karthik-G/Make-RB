@@ -1,3 +1,4 @@
+#code ran on ubuntu after downloading necessary libraries and packages
 import requests
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
