@@ -1,11 +1,11 @@
-# 🛣️ Make Roads Better (Make RB)
+#  Make Roads Better (Make RB)
 
 **Make Roads Better (Make RB)** is an Android-based pothole detection application that helps identify and report road potholes using real-time accelerometer and GPS data from your mobile device.  
 The goal is to make roads safer by collecting and sharing data about poor road conditions with drivers and authorities.
 
 ---
 
-## 🚗 Overview
+##  Theory(Overview)
 
 The app continuously analyzes changes in the **Z-axis acceleration** (the up–down movement of your phone) to detect potholes.  
 When a sudden spike or drop is detected within a defined threshold, the app marks that as a potential pothole and records its **GPS location**.
@@ -14,7 +14,7 @@ This data is stored in a central database and used to display potholes along you
 
 ---
 
-## 🛰️ How It Works
+##  How It Works
 
 1. Continuously monitors **accelerometer data** from the phone.  
 2. Detects potholes based on sudden changes in vertical acceleration.  
@@ -24,7 +24,7 @@ This data is stored in a central database and used to display potholes along you
 
 ---
 
-## 📱 Installation (Android Only)
+##  Installation Instructions For APK (Android Only)
 
 You can install and start using **Make Roads Better (Make RB)** by following these steps:
 
@@ -49,13 +49,13 @@ You can install and start using **Make Roads Better (Make RB)** by following the
 
 ---
 
-## 🌟 Features
+## End Goal 
 
-- Real-time pothole detection using accelerometer data  
-- Automatic GPS tagging of detected potholes  
+-**to create an app that **
+- Updates real-time pothole detection using accelerometer data  
+- Automatates GPS tagging of detected potholes  
 - Displays potholes along your route  
-- Centralized pothole database for crowdsourced reporting  
-- Lightweight, fast, and user-friendly interface  
+- Centralizes pothole database for crowdsourced reporting  
 
 ---
 
