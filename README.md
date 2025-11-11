@@ -32,8 +32,7 @@ You can install and start using **Make Roads Better (Make RB)** by following the
 
     [Click here to download MAKE-RB_Prototype_1.apk] [MAKE-RB_Prototype_1.apk](https://github.com/L-Karthik-G/Make-RB/releases/download/v1.0/MAKE-RB_Prototype._1.apk)
    
-      **The prototype 1 only detects the potholes and updates to a secure firebase although u can shake your phone around to see for what conditions it detects potholes.**
-
+    **Prototype 1 only detects potholes and updates them to a secure Firebase database. You can shake your phone to test the pothole detection.**
   
 
 3. **Install the App**
