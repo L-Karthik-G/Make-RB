@@ -49,9 +49,9 @@ You can install and start using **Make Roads Better (Make RB)** by following the
 
 ---
 
-## End Goal 
+## End Product 
 
--**to create an app that **
+**To create an app that**
 - Updates real-time pothole detection using accelerometer data  
 - Automatates GPS tagging of detected potholes  
 - Displays potholes along your route  
@@ -59,7 +59,7 @@ You can install and start using **Make Roads Better (Make RB)** by following the
 
 ---
 
-## 🚀 Future Improvements
+##  Future Improvements
 
 - Improve detection accuracy using **AI/ML-based motion analysis**  
 - Add **offline support** for low-connectivity areas  
@@ -69,7 +69,7 @@ You can install and start using **Make Roads Better (Make RB)** by following the
 
 ---
 
-## 💡 Goal
+##  Goal
 
 To make roads safer and smoother by **crowdsourcing pothole data** from everyday drivers, enabling proactive action by communities and authorities.
 
