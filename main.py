@@ -1,0 +1,165 @@
+import requests
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from collections import deque
+
+# Firebase URL - without query parameters first
+FIREBASE_URL = "https://accelerometer-for-potholes-default-rtdb.firebaseio.com/accelerometer.json"
+
+# Data storage (keep last 100 points)
+MAX_POINTS = 100
+time_data = deque(maxlen=MAX_POINTS)
+x_data = deque(maxlen=MAX_POINTS)
+y_data = deque(maxlen=MAX_POINTS)
+z_data = deque(maxlen=MAX_POINTS)
+
+# Time counter
+time_counter = 0
+
+# Create figure and axis
+fig, ax = plt.subplots(figsize=(12, 6))
+fig.suptitle('Live Accelerometer Data from Firebase', fontsize=16, fontweight='bold')
+
+# Initialize lines
+line_x, = ax.plot([], [], 'b-', label='X-Axis', linewidth=2)
+line_y, = ax.plot([], [], 'g-', label='Y-Axis', linewidth=2)
+line_z, = ax.plot([], [], 'r-', label='Z-Axis', linewidth=2)
+
+ax.set_xlabel('Time (s)', fontsize=12)
+ax.set_ylabel('Acceleration (m/s²)', fontsize=12)
+ax.legend(loc='upper right')
+ax.grid(True, alpha=0.3)
+
+# Set initial axis limits
+ax.set_xlim(0, 10)
+ax.set_ylim(-15, 15)
+
+# Status text
+status_text = ax.text(0.02, 0.98, '', transform=ax.transAxes, 
+                      verticalalignment='top', fontsize=10,
+                      bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+# Track last key to detect new data
+last_key = None
+
+def fetch_data():
+    """Fetch data from Firebase"""
+    try:
+        response = requests.get(FIREBASE_URL, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data, None
+        else:
+            return None, f"HTTP {response.status_code}"
+    except Exception as e:
+        return None, str(e)
+
+def animate(frame):
+    """Animation function called periodically"""
+    global time_counter, last_key
+    
+    # Fetch new data
+    data, error = fetch_data()
+    
+    if error:
+        status_text.set_text(f'Status: ❌ {error}')
+        status_text.set_bbox(dict(boxstyle='round', facecolor='red', alpha=0.5))
+        return line_x, line_y, line_z, status_text
+    
+    if data is None or not isinstance(data, dict) or len(data) == 0:
+        status_text.set_text('Status: ⚠ No data in Firebase')
+        status_text.set_bbox(dict(boxstyle='round', facecolor='orange', alpha=0.5))
+        return line_x, line_y, line_z, status_text
+    
+    try:
+        # Get all keys and sort to get the latest
+        keys = sorted(data.keys())
+        latest_key = keys[-1]  # Get the last (most recent) key
+        
+        # Only process if it's new data
+        if latest_key != last_key:
+            last_key = latest_key
+            
+            accel_data = data[latest_key]
+            
+            if isinstance(accel_data, dict):
+                x_val = float(accel_data.get('x', 0))
+                y_val = float(accel_data.get('y', 0))
+                z_val = float(accel_data.get('z', 0))
+                
+                # Append new data
+                time_data.append(time_counter)
+                x_data.append(x_val)
+                y_data.append(y_val)
+                z_data.append(z_val)
+                
+                time_counter += 1
+                
+                # Update lines
+                line_x.set_data(list(time_data), list(x_data))
+                line_y.set_data(list(time_data), list(y_data))
+                line_z.set_data(list(time_data), list(z_data))
+                
+                # Adjust axis limits
+                if len(time_data) > 1:
+                    ax.set_xlim(max(0, time_counter - MAX_POINTS), time_counter + 5)
+                    
+                    all_values = list(x_data) + list(y_data) + list(z_data)
+                    if all_values:
+                        y_min = min(all_values) - 2
+                        y_max = max(all_values) + 2
+                        if abs(y_max - y_min) > 0.1:
+                            ax.set_ylim(y_min, y_max)
+                
+                # Update status
+                status_text.set_text(f'Status: ✓ Connected | Points: {len(time_data)}\n'
+                                   f'X: {x_val:.3f} | Y: {y_val:.3f} | Z: {z_val:.3f}')
+                status_text.set_bbox(dict(boxstyle='round', facecolor='lightgreen', alpha=0.5))
+        else:
+            # Same data, just update status without adding point
+            accel_data = data[latest_key]
+            x_val = float(accel_data.get('x', 0))
+            y_val = float(accel_data.get('y', 0))
+            z_val = float(accel_data.get('z', 0))
+            
+            status_text.set_text(f'Status: ✓ Waiting for new data | Points: {len(time_data)}\n'
+                               f'X: {x_val:.3f} | Y: {y_val:.3f} | Z: {z_val:.3f}')
+            status_text.set_bbox(dict(boxstyle='round', facecolor='lightblue', alpha=0.5))
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        status_text.set_text(f'Status: ❌ {str(e)}')
+        status_text.set_bbox(dict(boxstyle='round', facecolor='red', alpha=0.5))
+    
+    fig.canvas.draw_idle()
+    return line_x, line_y, line_z, status_text
+
+def main():
+    """Main function to start the animation"""
+    print("Starting live accelerometer plot...")
+    print(f"Fetching data from: {FIREBASE_URL}")
+    print("Close the plot window to stop.\n")
+    
+    # Test initial connection
+    print("Testing connection...")
+    data, error = fetch_data()
+    if error:
+        print(f"❌ Error: {error}")
+    elif data:
+        print(f"✓ Connected! Found {len(data)} entries")
+        print(f"Sample data: {list(data.items())[:1]}")
+    else:
+        print("⚠ No data found")
+    print()
+    
+    # Create animation (update every 500ms)
+    ani = animation.FuncAnimation(fig, animate, interval=500, 
+                                 blit=False, cache_frame_data=False)
+    
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    main()
