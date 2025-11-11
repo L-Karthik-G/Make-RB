@@ -1,3 +1,5 @@
+#NEED TO WOKR ON GPS
+
 import requests
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
