@@ -1,166 +1,238 @@
-#code ran on ubuntu after downloading necessary libraries and packages
+from kivy.app import App
+from kivy.uix.label import Label
+from kivy.clock import Clock
+from plyer import accelerometer, gps
+from kivy.utils import platform
 import requests
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from collections import deque
+import time
+import math
 
-# Firebase URL - without query parameters first
-FIREBASE_URL = "https://accelerometer-for-potholes-default-rtdb.firebaseio.com/accelerometer.json"
+FIREBASE_URL = "https://accelerometer-for-potholes-default-rtdb.firebaseio.com/data.json"
 
-# Data storage (keep last 100 points)
-MAX_POINTS = 100
-time_data = deque(maxlen=MAX_POINTS)
-x_data = deque(maxlen=MAX_POINTS)
-y_data = deque(maxlen=MAX_POINTS)
-z_data = deque(maxlen=MAX_POINTS)
+# Filter constants
+ALPHA_LPF = 0.8
+ALPHA_HPF = 0.8
+BASELINE_SAMPLES = 10
 
-# Time counter
-time_counter = 0
-
-# Create figure and axis
-fig, ax = plt.subplots(figsize=(12, 6))
-fig.suptitle('Live Accelerometer Data from Firebase', fontsize=16, fontweight='bold')
-
-# Initialize lines
-line_x, = ax.plot([], [], 'b-', label='X-Axis', linewidth=2)
-line_y, = ax.plot([], [], 'g-', label='Y-Axis', linewidth=2)
-line_z, = ax.plot([], [], 'r-', label='Z-Axis', linewidth=2)
-
-ax.set_xlabel('Time (s)', fontsize=12)
-ax.set_ylabel('Acceleration (m/s²)', fontsize=12)
-ax.legend(loc='upper right')
-ax.grid(True, alpha=0.3)
-
-# Set initial axis limits
-ax.set_xlim(0, 10)
-ax.set_ylim(-15, 15)
-
-# Status text
-status_text = ax.text(0.02, 0.98, '', transform=ax.transAxes, 
-                      verticalalignment='top', fontsize=10,
-                      bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-
-# Track last key to detect new data
-last_key = None
-
-def fetch_data():
-    """Fetch data from Firebase"""
-    try:
-        response = requests.get(FIREBASE_URL, timeout=10)
+class AccelApp(App):
+    def build(self):
+        self.label = Label(text="Initializing sensors...", font_size='18sp')
         
-        if response.status_code == 200:
-            data = response.json()
-            return data, None
-        else:
-            return None, f"HTTP {response.status_code}"
-    except Exception as e:
-        return None, str(e)
-
-def animate(frame):
-    """Animation function called periodically"""
-    global time_counter, last_key
-    
-    # Fetch new data
-    data, error = fetch_data()
-    
-    if error:
-        status_text.set_text(f'Status: ❌ {error}')
-        status_text.set_bbox(dict(boxstyle='round', facecolor='red', alpha=0.5))
-        return line_x, line_y, line_z, status_text
-    
-    if data is None or not isinstance(data, dict) or len(data) == 0:
-        status_text.set_text('Status: ⚠ No data in Firebase')
-        status_text.set_bbox(dict(boxstyle='round', facecolor='orange', alpha=0.5))
-        return line_x, line_y, line_z, status_text
-    
-    try:
-        # Get all keys and sort to get the latest
-        keys = sorted(data.keys())
-        latest_key = keys[-1]  # Get the last (most recent) key
+        # Initialize variables
+        self.baseline_z = 9.8
+        self.filtered_z = 9.8
+        self.hpf_z = 0
+        self.last_z = 0
+        self.baseline_window = []
         
-        # Only process if it's new data
-        if latest_key != last_key:
-            last_key = latest_key
-            
-            accel_data = data[latest_key]
-            
-            if isinstance(accel_data, dict):
-                x_val = float(accel_data.get('x', 0))
-                y_val = float(accel_data.get('y', 0))
-                z_val = float(accel_data.get('z', 0))
+        # GPS variables
+        self.current_lat = 0
+        self.current_lon = 0
+        self.last_location = None
+        self.speed = 0
+        self.gps_enabled = False
+        self.readings_since_reset = 0
+        
+        # Start sensors
+        self.start_accelerometer()
+        self.start_gps()
+        
+        # Update display every 0.5 seconds
+        Clock.schedule_interval(self.update, 0.5)
+        return self.label
+    
+    def start_accelerometer(self):
+        """Initialize accelerometer with error handling"""
+        try:
+            accelerometer.enable()
+            self.label.text = "Accelerometer enabled"
+        except Exception as e:
+            self.label.text = f"Accelerometer error: {e}"
+            print(f"Accelerometer error: {e}")
+    
+    def start_gps(self):
+        """Initialize GPS with proper permissions and error handling"""
+        if platform == 'android':
+            try:
+                # Request Android permissions
+                from android.permissions import request_permissions, Permission
+                request_permissions([
+                    Permission.ACCESS_FINE_LOCATION,
+                    Permission.ACCESS_COARSE_LOCATION
+                ])
                 
-                # Append new data
-                time_data.append(time_counter)
-                x_data.append(x_val)
-                y_data.append(y_val)
-                z_data.append(z_val)
+                # Configure and start GPS
+                gps.configure(on_location=self.on_location, on_status=self.on_status)
+                gps.start(minTime=1000, minDistance=0)
+                self.gps_enabled = True
+                self.label.text = "GPS starting..."
+                print("GPS configured and started")
                 
-                time_counter += 1
-                
-                # Update lines
-                line_x.set_data(list(time_data), list(x_data))
-                line_y.set_data(list(time_data), list(y_data))
-                line_z.set_data(list(time_data), list(z_data))
-                
-                # Adjust axis limits
-                if len(time_data) > 1:
-                    ax.set_xlim(max(0, time_counter - MAX_POINTS), time_counter + 5)
-                    
-                    all_values = list(x_data) + list(y_data) + list(z_data)
-                    if all_values:
-                        y_min = min(all_values) - 2
-                        y_max = max(all_values) + 2
-                        if abs(y_max - y_min) > 0.1:
-                            ax.set_ylim(y_min, y_max)
-                
-                # Update status
-                status_text.set_text(f'Status: ✓ Connected | Points: {len(time_data)}\n'
-                                   f'X: {x_val:.3f} | Y: {y_val:.3f} | Z: {z_val:.3f}')
-                status_text.set_bbox(dict(boxstyle='round', facecolor='lightgreen', alpha=0.5))
+            except Exception as e:
+                self.label.text = f"GPS setup failed: {e}"
+                print(f"GPS error: {e}")
+                self.gps_enabled = False
         else:
-            # Same data, just update status without adding point
-            accel_data = data[latest_key]
-            x_val = float(accel_data.get('x', 0))
-            y_val = float(accel_data.get('y', 0))
-            z_val = float(accel_data.get('z', 0))
+            self.label.text = "GPS only available on Android\nAccelerometer active"
+            self.gps_enabled = False
+    
+    def on_location(self, **kwargs):
+        """Called when GPS location updates"""
+        try:
+            lat = kwargs.get('lat')
+            lon = kwargs.get('lon')
             
-            status_text.set_text(f'Status: ✓ Waiting for new data | Points: {len(time_data)}\n'
-                               f'X: {x_val:.3f} | Y: {y_val:.3f} | Z: {z_val:.3f}')
-            status_text.set_bbox(dict(boxstyle='round', facecolor='lightblue', alpha=0.5))
+            if lat is None or lon is None:
+                print("Invalid GPS data received")
+                return
             
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        status_text.set_text(f'Status: ❌ {str(e)}')
-        status_text.set_bbox(dict(boxstyle='round', facecolor='red', alpha=0.5))
+            self.current_lat = lat
+            self.current_lon = lon
+            
+            # Calculate speed if we have a previous location
+            if self.last_location:
+                lat1, lon1, t1 = self.last_location
+                lat2, lon2, t2 = self.current_lat, self.current_lon, time.time()
+                
+                # Calculate distance using haversine formula
+                distance = self.haversine(lat1, lon1, lat2, lon2)
+                time_diff = t2 - t1
+                
+                if time_diff > 0:
+                    # Speed in m/s converted to km/h
+                    self.speed = (distance / time_diff) * 3.6
+            
+            # Update last location
+            self.last_location = (self.current_lat, self.current_lon, time.time())
+            print(f"GPS: Lat={lat:.6f}, Lon={lon:.6f}, Speed={self.speed:.2f} km/h")
+            
+        except Exception as e:
+            print(f"Error in on_location: {e}")
     
-    fig.canvas.draw_idle()
-    return line_x, line_y, line_z, status_text
-
-def main():
-    """Main function to start the animation"""
-    print("Starting live accelerometer plot...")
-    print(f"Fetching data from: {FIREBASE_URL}")
-    print("Close the plot window to stop.\n")
+    def on_status(self, stype, status):
+        """Called when GPS status changes"""
+        print(f"GPS Status: {stype} - {status}")
+        if status == 'provider-enabled':
+            self.label.text = "GPS enabled"
+        elif status == 'provider-disabled':
+            self.label.text = "GPS disabled - enable location services"
     
-    # Test initial connection
-    print("Testing connection...")
-    data, error = fetch_data()
-    if error:
-        print(f"❌ Error: {error}")
-    elif data:
-        print(f"✓ Connected! Found {len(data)} entries")
-        print(f"Sample data: {list(data.items())[:1]}")
-    else:
-        print("⚠ No data found")
-    print()
+    def haversine(self, lat1, lon1, lat2, lon2):
+        """Calculate distance between two GPS coordinates in meters"""
+        R = 6371000  # Earth radius in meters
+        
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        
+        a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+        return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     
-    # Create animation (update every 500ms)
-    ani = animation.FuncAnimation(fig, animate, interval=500, 
-                                 blit=False, cache_frame_data=False)
+    def low_pass_filter(self, new, prev):
+        """Low-pass filter to remove high-frequency noise"""
+        return ALPHA_LPF * prev + (1 - ALPHA_LPF) * new
     
-    plt.tight_layout()
-    plt.show()
+    def high_pass_filter(self, new, prev, prev_filtered):
+        """High-pass filter to remove gravity/baseline"""
+        return ALPHA_HPF * (prev_filtered + new - prev)
+    
+    def update(self, dt):
+        """Main update loop - called every 0.5 seconds"""
+        try:
+            # Get accelerometer data
+            val = accelerometer.acceleration
+            
+            if val is None or None in val:
+                return
+            
+            x, y, z = val
+            
+            # Apply filters
+            self.filtered_z = self.low_pass_filter(z, self.filtered_z)
+            self.hpf_z = self.high_pass_filter(z, self.last_z, self.hpf_z)
+            self.last_z = z
+            
+            # Build baseline
+            self.baseline_window.append(self.filtered_z)
+            if len(self.baseline_window) > BASELINE_SAMPLES:
+                self.baseline_window.pop(0)
+            
+            # Calculate baseline average
+            if self.baseline_window:
+                self.baseline_z = sum(self.baseline_window) / len(self.baseline_window)
+            
+            # Calculate deviation from baseline
+            delta_z = self.filtered_z - self.baseline_z
+            
+            # Detect pothole (adjust sensitivity based on speed)
+            sensitivity = max(1, min(4, 4 - self.speed * 0.5))  # slower = more sensitive
+            
+            if delta_z < -sensitivity:
+                # Pothole detected!
+                event = {
+                    "timestamp": time.time(),
+                    "pothole": True,
+                    "delta_z": delta_z,
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "lat": self.current_lat,
+                    "lon": self.current_lon,
+                    "speed": self.speed
+                }
+                
+                # Send to Firebase
+                try:
+                    requests.post(FIREBASE_URL, json=event, timeout=2)
+                    self.label.text = f"Pothole! ΔZ={delta_z:.2f}\nLat={self.current_lat:.5f}, Lon={self.current_lon:.5f}"
+                except Exception as e:
+                    print(f"Firebase error: {e}")
+                    self.label.text = f"Pothole detected (offline)\nΔZ={delta_z:.2f}"
+            else:
+                # Normal data logging
+                data = {
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "delta_z": delta_z,
+                    "lat": self.current_lat,
+                    "lon": self.current_lon,
+                    "speed": self.speed,
+                    "timestamp": time.time()
+                }
+                
+                try:
+                    requests.post(FIREBASE_URL, json=data, timeout=2)
+                except Exception as e:
+                    print(f"Firebase error: {e}")
+                
+                # Update display
+                gps_status = f"GPS: {self.current_lat:.5f}, {self.current_lon:.5f}" if self.gps_enabled else "GPS: Waiting..."
+                self.label.text = f"ΔZ={delta_z:.2f} | Speed={self.speed:.1f} km/h\n{gps_status}"
+            
+            # Auto-clear Firebase every 75 readings
+            self.readings_since_reset += 1
+            if self.readings_since_reset >= 75:
+                try:
+                    requests.delete(FIREBASE_URL, timeout=2)
+                    self.readings_since_reset = 0
+                    print("Firebase data cleared")
+                except Exception as e:
+                    print(f"Firebase clear error: {e}")
+        
+        except Exception as e:
+            self.label.text = f"Error: {e}"
+            print(f"Update error: {e}")
+    
+    def on_stop(self):
+        """Clean up when app closes"""
+        try:
+            accelerometer.disable()
+            if self.gps_enabled:
+                gps.stop()
+        except Exception as e:
+            print(f"Cleanup error: {e}")
 
 if __name__ == "__main__":
-    main()
+    AccelApp().run()
